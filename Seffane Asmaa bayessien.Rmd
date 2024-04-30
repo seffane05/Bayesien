@@ -1,0 +1,219 @@
+---
+title: "Seffane Asmaa Bayesien"
+author: "SEFFANE Asmaa"
+date: "2023-10-14"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+d = read.csv("mutations2.csv")
+#Deplacer la column "barre" dansla premiere column
+d = d[, c(6, 1:21)]
+library(MCMCpack)
+library(BMS)
+library(corrplot)
+
+numeric_d <- d[sapply(d, is.numeric)]
+numeric_d1 <- subset(numeric_d, select = -c(Barre.1))
+reg.f1 = lm(Barre ~ ., data = numeric_d1)
+summary(reg.f1)
+reg2.f = step(reg.f1)
+summary(reg2.f)
+```
+
+PREDICTION:
+
+
+```{r}
+idx = 21:26
+d2 = numeric_d1[-idx, ]
+d3 = numeric_d1[idx, ]
+```
+
+prediction pour la regression lineaire
+```{r}
+pred.f = predict(reg2.f, d3, se.fit=T)
+```
+
+```{r}
+reg2.b = bms(X.data= d2, burn=1e4, iter=5e4, nmodel=2e3)
+topmodels.bma(reg2.b)[, 1]
+reg2.b1 = bms(X.data= d2, burn=1e4, iter=5e4, nmodel = 2)
+```
+```{r}
+pdens1 = pred.density(reg2.b1, d3)
+pdens1
+plot(pdens1, 2)
+```
+
+
+
+```{r}
+pdens.all = pred.density(reg2.b, d3)
+pdens.all
+plot(pdens.all, 2)
+```
+
+
+```{r}
+plot(d3$Barre, d3$Barre,col=1, xlim=c(20, 1000), ylim=c(20, 1000))
+abline(0, 1)
+points(d3$Barre, pred.f$fit, col=2)
+for(i in 1:6){
+  lines(c(d3$Barre[i], d3$Barre[i]), pred.f$fit[i]+c(-2,2)*pred.f$se.fit[i], col=2)
+}
+for(i in 1:6){
+  lines(c(d3$Barre[i], d3$Barre[i])+6, quantile(pdens.all, c(.025, .975))[i, ], col=4)
+}
+```
+
+Conclusion about the perfect model.
+
+
+Let's extract the data only where matiere is  "mathematique" and "anglais"
+
+```{r}
+d_Ma <- d[d$Matiere == "MATHS" , ]
+d_AN <- d[d$Matiere == "ANGLAIS" , ]
+View(d_Ma)
+View(d_AN)
+```
+
+```{r}
+numerci_MA <- d[sapply(d_Ma, is.numeric)] 
+library(MCMCpack)
+reg_MA = MCMCregress(Barre ~ effectif_presents_serie_l + effectif_presents_serie_s + taux_acces_brut_premiere_bac + Barre.1 + taux_acces_attendu_seconde_bac, data=numerci_MA)
+summary(reg_MA)
+plot(reg_MA[, 3:5])
+raftery.diag(reg_MA)
+effectiveSize(reg_MA)
+```
+
+```{r}
+numerci_AN <- d[sapply(d_AN, is.numeric)] 
+library(MCMCpack)
+reg_AN = MCMCregress(Barre ~ effectif_presents_serie_l + effectif_presents_serie_s + taux_acces_brut_premiere_bac + Barre.1 + taux_acces_attendu_seconde_bac, data=numerci_AN)
+summary(reg_AN)
+plot(reg_AN[, 3:5])
+raftery.diag(reg_AN)
+effectiveSize(reg_AN)
+```
+
+```{r}
+numeriC_MA <- d[sapply(d_Ma, is.numeric)]
+numeric_MA1 <- subset(numeriC_MA, select = -c(Barre.1))
+regMA_1 = bms(numeric_MA1, burn = 1e4, iter = 5e4)
+coef(regMA_1)
+image(regMA_1)
+topmodels.bma(regMA_1)[, 1:5]
+```
+
+
+```{r}
+numeriC_AN <- d[sapply(d_AN, is.numeric)]
+numeric_AN1 <- subset(numeriC_AN, select = -c(Barre.1))
+regAN_1 = bms(numeric_AN1, burn = 1e4, iter = 5e4)
+coef(regAN_1)
+image(regAN_1)
+topmodels.bma(regAN_1)[, 1:5]
+```
+PREDICTIONS: 
+```{r}
+idx = 21:26
+d2_MA = numeric_MA1[-idx, ]
+d3_MA = numeric_MA1[idx, ]
+
+```
+
+
+```{r}
+regMA.b = bms(X.data= d2_MA, burn=1e4, iter=5e4, nmodel=2e3)
+regMA.2 = bms(X.data= d2_MA, burn=1e4, iter=5e4, nmodel = 2)
+pdens1 = pred.density(regMA.2, d3_MA)
+pdens1
+plot(pdens1, 2)
+pdens.all = pred.density(regMA.b, d3_MA)
+pdens.all
+plot(pdens.all, 2)
+```
+
+```{r}
+regMA.f = lm(Barre ~ taux_reussite_attendu_serie_l + taux_acces_attendu_premiere_bac, data = numeric_MA1)
+summary(regMA.f)
+pred.f = predict(regMA.f, d3_MA, se.fit=T)
+```
+
+
+
+```{r}
+plot(d3_MA$Barre, d3_MA$Barre,col=1, xlim=c(20, 1000), ylim=c(20, 1000))
+abline(0, 1)
+points(d3_MA$Barre, pred.f$fit, col=2)
+for(i in 1:6){
+  lines(c(d3_MA$Barre[i], d3_MA$Barre[i]), pred.f$fit[i]+c(-2,2)*pred.f$se.fit[i], col=2)
+}
+
+for(i in 1:6){
+  lines(c(d3_MA$Barre[i], d3_MA$Barre[i])+6, quantile(pdens.all, c(.025, .975))[i, ], col=4)
+}
+
+```
+
+
+
+```{r}
+idx = 21:26
+d2_AN = numeric_AN1[-idx, ]
+d3_AN = numeric_AN1[idx, ]
+
+```
+
+
+```{r}
+regAN.b = bms(X.data= d2_AN, burn=1e4, iter=5e4, nmodel=2e3)
+regAN.2 = bms(X.data= d2_AN, burn=1e4, iter=5e4, nmodel = 2)
+pdens1 = pred.density(regAN.2, d3_AN)
+pdens1
+plot(pdens1, 2)
+pdens.all = pred.density(regAN.b, d3_AN)
+pdens.all
+plot(pdens.all, 2)
+```
+```{r}
+regAN.f = lm(Barre ~ taux_reussite_attendu_serie_l + taux_acces_attendu_premiere_bac, data = numeric_AN1)
+summary(regAN.f)
+pred.f = predict(regAN.f, d3_AN, se.fit=T)
+```
+
+
+
+```{r}
+plot(d3_AN$Barre, d3_AN$Barre,col=1, xlim=c(20, 1000), ylim=c(20, 1000))
+abline(0, 1)
+points(d3_AN$Barre, pred.f$fit, col=2)
+for(i in 1:6){
+  lines(c(d3_AN$Barre[i], d3_AN$Barre[i]), pred.f$fit[i]+c(-2,2)*pred.f$se.fit[i], col=2)
+}
+
+for(i in 1:6){
+  lines(c(d3_AN$Barre[i], d3_AN$Barre[i])+6, quantile(pdens.all, c(.025, .975))[i, ], col=4)
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
